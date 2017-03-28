@@ -1,15 +1,75 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+using System.IO;
 using System.Threading.Tasks;
+using Microsoft.Owin.Hosting;
+using Owin;
 
 namespace asp_owin_examples
 {
-    class Program
+    using AppFunc = Func<IDictionary<string, object>, Task>;
+
+    internal class Program
     {
-        static void Main(string[] args)
+        private static void Main(string[] args)
         {
+            var uri = "http://localhost:8910";
+
+            using (WebApp.Start<Startup>(uri))
+            {
+                Console.WriteLine("## Server started, press any key to shutdown.");
+                Console.ReadKey();
+                Console.WriteLine("## Shutting Down.");
+            }
+        }
+
+        internal class Startup
+        {
+            public void Configuration(IAppBuilder app)
+            {
+                app.Use<SampleMiddleware>();
+                // This next middlware would normally be written using app.Run(context=>{...}) because it does not call next.
+                app.Use(async (conetext, next) =>
+                {
+                    Console.WriteLine("Start of lambda middleware.");
+                    await conetext.Response.WriteAsync("Please say hello.");
+                    Console.WriteLine("End of lambda middleware.");
+                });
+            }
+        }
+
+        /// <summary>
+        ///     A Middleware that writes a response if the path contains `hello` otherwise it calls the next middleware.
+        /// </summary>
+        internal class SampleMiddleware
+        {
+            private readonly AppFunc _next;
+
+            public SampleMiddleware(AppFunc next)
+            {
+                _next = next;
+            }
+
+            public async Task Invoke(IDictionary<string, object> environment)
+            {
+                Console.WriteLine("Start of SampleMiddleWare");
+
+                if (environment["owin.RequestPath"].ToString().Contains("hello"))
+                {
+                    using (var writer = new StreamWriter((Stream) environment["owin.ResponseBody"]))
+                    {
+                        await writer.WriteAsync("Salutations.");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("Before SampleMiddleWare next()");
+                    await _next(environment);
+                    Console.WriteLine("After SampleMiddleWare next()");
+                }
+
+                Console.WriteLine("End of SampleMiddleWare");
+            }
         }
     }
 }
