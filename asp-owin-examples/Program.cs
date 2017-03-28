@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using System.Web.Http;
 using Microsoft.Owin.Hosting;
 using Owin;
 
@@ -27,12 +28,19 @@ namespace asp_owin_examples
         {
             public void Configuration(IAppBuilder app)
             {
+                var webApiConfig = new HttpConfiguration();
+                webApiConfig.Routes.MapHttpRoute(
+                    "apiRoute",
+                    "api/{controller}/{id}",
+                    new {id = RouteParameter.Optional});
+                app.UseWebApi(webApiConfig);
+
                 app.Use<SampleMiddleware>();
                 // This next middlware would normally be written using app.Run(context=>{...}) because it does not call next.
                 app.Use(async (conetext, next) =>
                 {
                     Console.WriteLine("Start of lambda middleware.");
-                    await conetext.Response.WriteAsync("Please say hello.");
+                    await conetext.Response.WriteAsync("Please say cheese.");
                     Console.WriteLine("End of lambda middleware.");
                 });
             }
@@ -54,7 +62,7 @@ namespace asp_owin_examples
             {
                 Console.WriteLine("Start of SampleMiddleWare");
 
-                if (environment["owin.RequestPath"].ToString().Contains("hello"))
+                if (environment["owin.RequestPath"].ToString().Contains("cheese"))
                 {
                     using (var writer = new StreamWriter((Stream) environment["owin.ResponseBody"]))
                     {
